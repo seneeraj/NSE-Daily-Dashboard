@@ -2,3 +2,5 @@ requests
 pandas
 matplotlib
 Pillow
+playwright
+secure-smtplib
