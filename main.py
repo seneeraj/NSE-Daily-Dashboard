@@ -6,8 +6,7 @@ def run():
     if data:
         plot_open_interest(data)
     else:
-        print("No data received.")
+        print("❌ No data to plot.")
 
-   
 if __name__ == "__main__":
     run()
