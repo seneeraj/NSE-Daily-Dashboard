@@ -17,7 +17,7 @@ kite.set_access_token(ACCESS_TOKEN)
 def get_instruments():
     return pd.DataFrame(kite.instruments("NSE"))
 
- try:
+    try:
         st.info("🔐 Initializing Zerodha API...")
         kite = KiteConnect(api_key=st.secrets["zerodha"]["api_key"])
         kite.set_access_token(st.secrets["zerodha"]["access_token"])
