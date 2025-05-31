@@ -4,8 +4,9 @@ import matplotlib.pyplot as plt
 from kiteconnect import KiteConnect
 
 # CONFIGURATION
-API_KEY = "92eoia36uvk7rkb0"
-ACCESS_TOKEN = "243001"
+API_KEY = st.secrets["zerodha"]["api_key"]
+API_SECRET = st.secrets["zerodha"]["api_secret"]
+ACCESS_TOKEN = st.secrets["zerodha"]["access_token"]
 
 # Initialize Kite Connect
 kite = KiteConnect(api_key=API_KEY)
