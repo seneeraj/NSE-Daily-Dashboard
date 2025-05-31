@@ -4,3 +4,4 @@ matplotlib
 Pillow
 secure-smtplib
 kiteconnect
+seaborn
