@@ -17,9 +17,25 @@ kite.set_access_token(ACCESS_TOKEN)
 def get_instruments():
     return pd.DataFrame(kite.instruments("NSE"))
 
-instruments = kite.instruments()
-print(f"Total instruments: {len(instruments)}")
-print(instruments[:5])  # Print first 5 entries for verification
+ try:
+        st.info("🔐 Initializing Zerodha API...")
+        kite = KiteConnect(api_key=st.secrets["zerodha"]["api_key"])
+        kite.set_access_token(st.secrets["zerodha"]["access_token"])
+
+        st.success("✅ Zerodha API initialized successfully!")
+
+        st.info("📦 Fetching instrument list...")
+        instruments = kite.instruments()
+
+        st.success(f"✅ Total instruments fetched: {len(instruments)}")
+
+        # Display first 5 instruments
+        df = pd.DataFrame(instruments)
+        st.dataframe(df.head())
+
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+
 
 # Get NIFTY option chain data
 def get_option_chain(symbol="NIFTY"):
