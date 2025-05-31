@@ -7,3 +7,4 @@ def fetch_nifty_data():
     except Exception as e:
         print("❌ Error fetching data from NSE:", e)
         return []
+
