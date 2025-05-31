@@ -3,4 +3,4 @@ pandas
 matplotlib
 Pillow
 secure-smtplib
-nsepython
+kiteconnect
