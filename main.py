@@ -17,6 +17,10 @@ kite.set_access_token(ACCESS_TOKEN)
 def get_instruments():
     return pd.DataFrame(kite.instruments("NSE"))
 
+instruments = kite.instruments()
+print(f"Total instruments: {len(instruments)}")
+print(instruments[:5])  # Print first 5 entries for verification
+
 # Get NIFTY option chain data
 def get_option_chain(symbol="NIFTY"):
     all_instruments = get_instruments()
