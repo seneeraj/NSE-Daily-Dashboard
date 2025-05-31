@@ -1,22 +1,59 @@
 import streamlit as st
-from data_fetcher import fetch_nifty_data
-from chart_generator import plot_open_interest
-import os
+import pandas as pd
+import matplotlib.pyplot as plt
+from kiteconnect import KiteConnect
 
-def run():
-    st.title("📈 NIFTY Open Interest Dashboard")
+# CONFIGURATION
+API_KEY = "92eoia36uvk7rkb0"
+ACCESS_TOKEN = "243001"
 
-    with st.spinner("Fetching option chain data..."):
-        data = fetch_nifty_data()
+# Initialize Kite Connect
+kite = KiteConnect(api_key=API_KEY)
+kite.set_access_token(ACCESS_TOKEN)
 
-    if data:
-        plot_open_interest(data)
-        if os.path.exists("nifty_oi_chart.png"):
-            st.image("nifty_oi_chart.png", caption="NIFTY Open Interest", use_column_width=True)
-        else:
-            st.error("⚠️ Chart generation failed.")
-    else:
-        st.error("❌ Failed to fetch or parse NIFTY option chain data.")
+# Fetch instruments once
+@st.cache_data
+def get_instruments():
+    return pd.DataFrame(kite.instruments("NSE"))
+
+# Get NIFTY option chain data
+def get_option_chain(symbol="NIFTY"):
+    all_instruments = get_instruments()
+    oc = all_instruments[
+        (all_instruments['name'] == symbol) &
+        (all_instruments['segment'] == 'NFO-OPT') &
+        (all_instruments['expiry'] == all_instruments['expiry'].min())  # nearest expiry
+    ]
+    return oc
+
+# Main Dashboard
+def main():
+    st.title("📈 Zerodha NIFTY Option Chain Dashboard")
+
+    df = get_option_chain()
+
+    st.write("Fetched Instruments:", df.shape[0])
+
+    # Prepare for OI visualization
+    calls = df[df['instrument_type'] == 'CE']
+    puts = df[df['instrument_type'] == 'PE']
+
+    merged = pd.merge(
+        calls[['strike', 'last_price', 'instrument_token']],
+        puts[['strike', 'last_price', 'instrument_token']],
+        on='strike',
+        suffixes=('_call', '_put')
+    )
+
+    # Plot chart
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(merged['strike'], merged['last_price_call'], label='Call Price', color='green')
+    ax.plot(merged['strike'], merged['last_price_put'], label='Put Price', color='red')
+    ax.set_xlabel("Strike Price")
+    ax.set_ylabel("Price")
+    ax.set_title("Call vs Put Prices - NIFTY Option Chain")
+    ax.legend()
+    st.pyplot(fig)
 
 if __name__ == "__main__":
-    run()
+    main()
