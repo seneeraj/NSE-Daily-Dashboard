@@ -1,8 +1,9 @@
 import streamlit as st
 from kiteconnect import KiteConnect
 import pandas as pd
+import matplotlib.pyplot as plt
 
-# Caching the fetch operation
+# Fetch instruments from Zerodha
 @st.cache_data(show_spinner="Fetching instruments from Zerodha...")
 def get_instruments(api_key, access_token):
     kite = KiteConnect(api_key=api_key)
@@ -10,57 +11,57 @@ def get_instruments(api_key, access_token):
     instruments = kite.instruments()
     return pd.DataFrame(instruments)
 
-def main():
-    st.set_page_config(page_title="Zerodha Option Chain Dashboard", layout="wide")
-    st.title("📊 Zerodha NSE Option Chain Viewer")
+# Fetch real-time Open Interest for NIFTY options
+def fetch_oi_data(kite, df):
+    tokens = df['instrument_token'].tolist()
+    quotes = kite.quote(tokens)
+    df['open_interest'] = df['instrument_token'].apply(lambda x: quotes.get(str(x), {}).get("oi", 0))
+    return df
 
-    # Load secrets
+# Plot OI buildup
+def plot_oi_chart(df):
+    oi_df = df[['strike', 'instrument_type', 'open_interest']].copy()
+    grouped = oi_df.groupby(['strike', 'instrument_type'])['open_interest'].sum().unstack().fillna(0)
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    grouped['CE'].plot(kind='bar', color='skyblue', width=0.4, position=1, label='Call OI', ax=ax)
+    grouped['PE'].plot(kind='bar', color='orange', width=0.4, position=0, label='Put OI', ax=ax)
+    ax.set_title("NIFTY Option Chain OI Buildup")
+    ax.set_xlabel("Strike Price")
+    ax.set_ylabel("Open Interest")
+    ax.legend()
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
+# Main Streamlit app
+def main():
+    st.set_page_config(page_title="Zerodha Option Chain with OI Chart", layout="wide")
+    st.title("📊 NIFTY Option Chain Viewer with OI Buildup Chart")
+
     try:
         api_key = st.secrets["zerodha"]["api_key"]
         access_token = st.secrets["zerodha"]["access_token"]
     except KeyError:
-        st.error("❌ API Key or Access Token missing in secrets. Please configure them.")
+        st.error("❌ Missing Zerodha credentials in Streamlit secrets.")
         return
 
     try:
-        df = get_instruments(api_key, access_token)
-        st.success(f"✅ Instruments fetched: {len(df)}")
-        st.dataframe(df.head(20))
+        df_all = get_instruments(api_key, access_token)
+        kite = KiteConnect(api_key=api_key)
+        kite.set_access_token(access_token)
 
-        # Optional: Filter for NIFTY options
-        nifty_opt = df[(df['name'] == 'NIFTY') & (df['segment'] == 'NFO-OPT')]
+        df_nifty = df_all[(df_all['name'] == 'NIFTY') & (df_all['segment'] == 'NFO-OPT')]
+
+        # Show top 20 option contracts
         st.subheader("📈 NIFTY Option Chain (Top 20)")
-        st.dataframe(nifty_opt.head(20))
+        st.dataframe(df_nifty.head(20))
 
-        # Calculate Open Interest chart data (top 20 strikes with CE/PE)
-        nifty_opt_oi = nifty_opt[nifty_opt["expiry"] == nifty_opt["expiry"].min()]  # Nearest expiry
-        oi_data = nifty_opt_oi[["strike", "instrument_type", "instrument_token"]].copy()
-        
-        # Get live OI data
-        from kiteconnect import KiteTicker  # only if you plan to use WebSocket, else stick with quote
-        tokens = oi_data["instrument_token"].tolist()
-        quotes = kite.quote(tokens)
-        oi_data["open_interest"] = oi_data["instrument_token"].apply(lambda x: quotes[str(x)]["oi"])
-        
-        # Pivot data to Strike vs [CE, PE]
-        pivot = oi_data.pivot_table(index="strike", columns="instrument_type", values="open_interest", fill_value=0)
-        pivot = pivot.sort_index().tail(20)  # show last 20 strike prices
-        
-        # Plot the chart
-        st.subheader("📊 OI Buildup Chart (CE vs PE)")
-        fig, ax = plt.subplots(figsize=(10, 5))
-        pivot["CE"].plot(kind="bar", color="skyblue", width=0.4, position=0, label="Call OI", ax=ax)
-        pivot["PE"].plot(kind="bar", color="orange", width=0.4, position=1, label="Put OI", ax=ax)
-        plt.title("NIFTY Open Interest Buildup (Nearest Expiry)")
-        plt.xlabel("Strike Price")
-        plt.ylabel("Open Interest")
-        plt.xticks(rotation=45)
-        plt.legend()
-        st.pyplot(fig)
-    
+        st.subheader("📊 OI Buildup Chart")
+        df_nifty = fetch_oi_data(kite, df_nifty)
+        plot_oi_chart(df_nifty)
 
     except Exception as e:
-        st.error(f"❌ Failed to fetch instruments: {e}")
+        st.error(f"❌ Failed: {e}")
 
 if __name__ == "__main__":
     main()
