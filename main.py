@@ -32,6 +32,33 @@ def main():
         st.subheader("📈 NIFTY Option Chain (Top 20)")
         st.dataframe(nifty_opt.head(20))
 
+        # Calculate Open Interest chart data (top 20 strikes with CE/PE)
+        nifty_opt_oi = nifty_opt[nifty_opt["expiry"] == nifty_opt["expiry"].min()]  # Nearest expiry
+        oi_data = nifty_opt_oi[["strike", "instrument_type", "instrument_token"]].copy()
+        
+        # Get live OI data
+        from kiteconnect import KiteTicker  # only if you plan to use WebSocket, else stick with quote
+        tokens = oi_data["instrument_token"].tolist()
+        quotes = kite.quote(tokens)
+        oi_data["open_interest"] = oi_data["instrument_token"].apply(lambda x: quotes[str(x)]["oi"])
+        
+        # Pivot data to Strike vs [CE, PE]
+        pivot = oi_data.pivot_table(index="strike", columns="instrument_type", values="open_interest", fill_value=0)
+        pivot = pivot.sort_index().tail(20)  # show last 20 strike prices
+        
+        # Plot the chart
+        st.subheader("📊 OI Buildup Chart (CE vs PE)")
+        fig, ax = plt.subplots(figsize=(10, 5))
+        pivot["CE"].plot(kind="bar", color="skyblue", width=0.4, position=0, label="Call OI", ax=ax)
+        pivot["PE"].plot(kind="bar", color="orange", width=0.4, position=1, label="Put OI", ax=ax)
+        plt.title("NIFTY Open Interest Buildup (Nearest Expiry)")
+        plt.xlabel("Strike Price")
+        plt.ylabel("Open Interest")
+        plt.xticks(rotation=45)
+        plt.legend()
+        st.pyplot(fig)
+    
+
     except Exception as e:
         st.error(f"❌ Failed to fetch instruments: {e}")
 
