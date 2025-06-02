@@ -10,6 +10,11 @@ st.set_page_config(page_title="Zerodha Option Chain with OI Chart", layout="wide
 # Debugging: Display secrets to verify
 st.write("✅ Secrets loaded:", st.secrets["zerodha"])
 
+# Button to clear cache
+if st.button("Clear Cache"):
+    st.cache_data.clear()
+    st.write("Cache cleared!")
+
 # 1. Initialize KiteConnect
 def get_kite():
     api_key = st.secrets["zerodha"]["api_key"]
@@ -79,7 +84,11 @@ def main():
             st.write("✅ API authentication successful:", profile["user_name"])
         except Exception as e:
             st.error(f"❌ Authentication failed: {e}")
-            st.info("Please regenerate the access token using the KiteConnect login flow and update st.secrets.")
+            st.info("Please regenerate the access token using the KiteConnect login flow: "
+                    "1. Visit https://kite.trade/connect/login?api_key=your_api_key\n"
+                    "2. Log in and get the request_token from the redirect URL\n"
+                    "3. Use the request_token to generate a new access_token\n"
+                    "4. Update st.secrets with the new access_token")
             return  # Stop execution if authentication fails
 
         df_all = get_instruments(kite)
