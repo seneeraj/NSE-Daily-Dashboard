@@ -2,6 +2,7 @@ import streamlit as st
 from kiteconnect import KiteConnect
 import pandas as pd
 import matplotlib.pyplot as plt
+import time
 
 # Set page config as the first Streamlit command
 st.set_page_config(page_title="Zerodha Option Chain with OI Chart", layout="wide")
@@ -9,7 +10,7 @@ st.set_page_config(page_title="Zerodha Option Chain with OI Chart", layout="wide
 # Debugging: Check if secrets are loaded
 st.write("✅ Secrets loaded:", st.secrets["zerodha"]["api_key"])
 
-# 1. Initialize KiteConnect (global)
+# 1. Initialize KiteConnect
 def get_kite():
     api_key = st.secrets["zerodha"]["api_key"]
     access_token = st.secrets["zerodha"]["access_token"]
@@ -23,20 +24,26 @@ def get_instruments(_kite):
     instruments = _kite.instruments()
     return pd.DataFrame(instruments)
 
-# 3. Fetch OI using live quote API with batching
-def fetch_oi_data(kite, df, batch_size=100):
+# 3. Fetch OI using live quote API with smaller batch size
+def fetch_oi_data(kite, df, batch_size=50):
     tokens = df['instrument_token'].tolist()
-    oi_data = {}
+    st.write(f"📊 Total tokens to process: {len(tokens)}")
+    
+    if not tokens:
+        st.error("No tokens found in DataFrame!")
+        return df
 
-    # Process tokens in batches
+    oi_data = {}
     for i in range(0, len(tokens), batch_size):
         batch_tokens = tokens[i:i + batch_size]
+        st.write(f"Processing batch {i//batch_size + 1} with {len(batch_tokens)} tokens")
         try:
             quotes = kite.quote(batch_tokens)
             oi_data.update(quotes)
+            time.sleep(0.2)  # Small delay to avoid rate limits
         except Exception as e:
             st.warning(f"Error fetching batch {i//batch_size + 1}: {e}")
-
+    
     # Add OI to DataFrame
     df['open_interest'] = df['instrument_token'].apply(lambda x: oi_data.get(str(x), {}).get("oi", 0))
     return df
@@ -67,14 +74,24 @@ def main():
         kite = get_kite()
         df_all = get_instruments(kite)
 
-        # Filter NIFTY options
+        # Filter NIFTY options and limit to nearest expiry
         df_nifty = df_all[(df_all['name'] == 'NIFTY') & (df_all['segment'] == 'NFO-OPT')]
+        if not df_nifty.empty:
+            # Get the nearest expiry date
+            nearest_expiry = df_nifty['expiry'].min()
+            df_nifty = df_nifty[df_nifty['expiry'] == nearest_expiry]
+            st.write(f"📅 Nearest expiry date: {nearest_expiry}")
+            # Optionally, limit strike range (e.g., ±10% around current price)
+            # Adjust this based on your needs
+            df_nifty = df_nifty[df_nifty['strike'].between(df_nifty['strike'].quantile(0.1), df_nifty['strike'].quantile(0.9))]
+        
+        st.write(f"📊 Total NIFTY options after filtering: {len(df_nifty)}")
 
         st.subheader("📈 NIFTY Option Chain (Top 20)")
         st.dataframe(df_nifty.head(20))
 
         st.subheader("📊 OI Buildup Chart")
-        df_nifty = fetch_oi_data(kite, df_nifty, batch_size=100)
+        df_nifty = fetch_oi_data(kite, df_nifty, batch_size=50)
         plot_oi_chart(df_nifty)
 
     except Exception as e:
