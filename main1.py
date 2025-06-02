@@ -4,6 +4,8 @@ from kiteconnect import KiteConnect
 import pandas as pd
 import matplotlib.pyplot as plt
 
+st.write("✅ Secrets loaded:", st.secrets["zerodha"]["api_key"])
+
 # 1. Initialize KiteConnect (global)
 def get_kite():
     api_key = st.secrets["zerodha"]["api_key"]
@@ -12,7 +14,6 @@ def get_kite():
     kite.set_access_token(access_token)
     return kite
 
-st.write("✅ Secrets loaded:", st.secrets["zerodha"]["api_key"])
 
 # 2. Fetch instruments and cache them (fix: ignore hashing of KiteConnect object)
 @st.cache_data(show_spinner="Fetching instruments from Zerodha...")
