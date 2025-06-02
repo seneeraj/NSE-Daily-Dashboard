@@ -12,6 +12,8 @@ def get_kite():
     kite.set_access_token(access_token)
     return kite
 
+st.write("✅ Secrets loaded:", st.secrets["zerodha"]["api_key"])
+
 # 2. Fetch instruments and cache them (fix: ignore hashing of KiteConnect object)
 @st.cache_data(show_spinner="Fetching instruments from Zerodha...")
 def get_instruments(_kite):
