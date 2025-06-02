@@ -24,7 +24,7 @@ def get_instruments(_kite):
     instruments = _kite.instruments()
     return pd.DataFrame(instruments)
 
-# 3. Fetch OI using live quote API with smaller batch size
+# 3. Fetch OI using live quote API
 def fetch_oi_data(kite, df, batch_size=50):
     tokens = df['instrument_token'].tolist()
     st.write(f"📊 Total tokens to process: {len(tokens)}")
@@ -74,8 +74,13 @@ def main():
         kite = get_kite()
         # Test API authentication
         st.write("🔍 Testing API authentication...")
-        profile = kite.profile()
-        st.write("✅ API authentication successful:", profile["user_name"])
+        try:
+            profile = kite.profile()
+            st.write("✅ API authentication successful:", profile["user_name"])
+        except Exception as e:
+            st.error(f"❌ Authentication failed: {e}")
+            st.info("Please regenerate the access token using the KiteConnect login flow and update st.secrets.")
+            return  # Stop execution if authentication fails
 
         df_all = get_instruments(kite)
 
