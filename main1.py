@@ -17,17 +17,28 @@ def get_kite():
     kite.set_access_token(access_token)
     return kite
 
-# 2. Fetch instruments and cache them (fix: ignore hashing of KiteConnect object)
+# 2. Fetch instruments and cache them
 @st.cache_data(show_spinner="Fetching instruments from Zerodha...")
 def get_instruments(_kite):
     instruments = _kite.instruments()
     return pd.DataFrame(instruments)
 
-# 3. Fetch OI using live quote API
-def fetch_oi_data(kite, df):
+# 3. Fetch OI using live quote API with batching
+def fetch_oi_data(kite, df, batch_size=100):
     tokens = df['instrument_token'].tolist()
-    quotes = kite.quote(tokens)
-    df['open_interest'] = df['instrument_token'].apply(lambda x: quotes.get(str(x), {}).get("oi", 0))
+    oi_data = {}
+
+    # Process tokens in batches
+    for i in range(0, len(tokens), batch_size):
+        batch_tokens = tokens[i:i + batch_size]
+        try:
+            quotes = kite.quote(batch_tokens)
+            oi_data.update(quotes)
+        except Exception as e:
+            st.warning(f"Error fetching batch {i//batch_size + 1}: {e}")
+
+    # Add OI to DataFrame
+    df['open_interest'] = df['instrument_token'].apply(lambda x: oi_data.get(str(x), {}).get("oi", 0))
     return df
 
 # 4. Plot OI Chart
@@ -63,7 +74,7 @@ def main():
         st.dataframe(df_nifty.head(20))
 
         st.subheader("📊 OI Buildup Chart")
-        df_nifty = fetch_oi_data(kite, df_nifty)
+        df_nifty = fetch_oi_data(kite, df_nifty, batch_size=100)
         plot_oi_chart(df_nifty)
 
     except Exception as e:
