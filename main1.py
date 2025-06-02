@@ -91,5 +91,34 @@ def main():
             st.write("✅ API authentication successful:", profile["user_name"])
         except Exception as e:
             st.error(f"❌ Authentication failed: {e}")
-            st.info("Please regenerate the access token using the KiteConnect login flow:\n"
-                    "1. Visit https://kite.trade/connect
+            st.info("""Please regenerate the access token using the KiteConnect login flow:
+1. Visit https://kite.trade/connect/login?api_key=your_api_key
+2. Log in and get the request_token from the redirect URL
+3. Use the request_token to generate a new access_token
+4. Update st.secrets or use the sidebar to input the new access_token""")
+            return  # Stop execution if authentication fails
+
+        df_all = get_instruments(kite)
+
+        # Filter NIFTY options and limit to nearest expiry
+        df_nifty = df_all[(df_all['name'] == 'NIFTY') & (df_all['segment'] == 'NFO-OPT')]
+        if not df_nifty.empty:
+            nearest_expiry = df_nifty['expiry'].min()
+            df_nifty = df_nifty[df_nifty['expiry'] == nearest_expiry]
+            st.write(f"📅 Nearest expiry date: {nearest_expiry}")
+            df_nifty = df_nifty[df_nifty['strike'].between(df_nifty['strike'].quantile(0.1), df_nifty['strike'].quantile(0.9))]
+        
+        st.write(f"📊 Total NIFTY options after filtering: {len(df_nifty)}")
+
+        st.subheader("📈 NIFTY Option Chain (Top 20)")
+        st.dataframe(df_nifty.head(20))
+
+        st.subheader("📊 OI Buildup Chart")
+        df_nifty = fetch_oi_data(kite, df_nifty, batch_size=50)
+        plot_oi_chart(df_nifty)
+
+    except Exception as e:
+        st.error(f"❌ Failed: {e}")
+
+if __name__ == "__main__":
+    main()
