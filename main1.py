@@ -1,9 +1,12 @@
-
 import streamlit as st
 from kiteconnect import KiteConnect
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# Set page config as the first Streamlit command
+st.set_page_config(page_title="Zerodha Option Chain with OI Chart", layout="wide")
+
+# Debugging: Check if secrets are loaded
 st.write("✅ Secrets loaded:", st.secrets["zerodha"]["api_key"])
 
 # 1. Initialize KiteConnect (global)
@@ -13,7 +16,6 @@ def get_kite():
     kite = KiteConnect(api_key=api_key)
     kite.set_access_token(access_token)
     return kite
-
 
 # 2. Fetch instruments and cache them (fix: ignore hashing of KiteConnect object)
 @st.cache_data(show_spinner="Fetching instruments from Zerodha...")
@@ -48,7 +50,6 @@ def plot_oi_chart(df):
 
 # 5. Main App
 def main():
-    st.set_page_config(page_title="Zerodha Option Chain with OI Chart", layout="wide")
     st.title("📊 NIFTY Option Chain Viewer with OI Buildup Chart")
 
     try:
