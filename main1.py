@@ -7,8 +7,8 @@ import time
 # Set page config as the first Streamlit command
 st.set_page_config(page_title="Zerodha Option Chain with OI Chart", layout="wide")
 
-# Debugging: Check if secrets are loaded
-st.write("✅ Secrets loaded:", st.secrets["zerodha"]["api_key"])
+# Debugging: Display secrets to verify
+st.write("✅ Secrets loaded:", st.secrets["zerodha"])
 
 # 1. Initialize KiteConnect
 def get_kite():
@@ -40,7 +40,7 @@ def fetch_oi_data(kite, df, batch_size=50):
         try:
             quotes = kite.quote(batch_tokens)
             oi_data.update(quotes)
-            time.sleep(0.2)  # Small delay to avoid rate limits
+            time.sleep(0.2)  # Avoid rate limits
         except Exception as e:
             st.warning(f"Error fetching batch {i//batch_size + 1}: {e}")
     
@@ -72,17 +72,19 @@ def main():
 
     try:
         kite = get_kite()
+        # Test API authentication
+        st.write("🔍 Testing API authentication...")
+        profile = kite.profile()
+        st.write("✅ API authentication successful:", profile["user_name"])
+
         df_all = get_instruments(kite)
 
         # Filter NIFTY options and limit to nearest expiry
         df_nifty = df_all[(df_all['name'] == 'NIFTY') & (df_all['segment'] == 'NFO-OPT')]
         if not df_nifty.empty:
-            # Get the nearest expiry date
             nearest_expiry = df_nifty['expiry'].min()
             df_nifty = df_nifty[df_nifty['expiry'] == nearest_expiry]
             st.write(f"📅 Nearest expiry date: {nearest_expiry}")
-            # Optionally, limit strike range (e.g., ±10% around current price)
-            # Adjust this based on your needs
             df_nifty = df_nifty[df_nifty['strike'].between(df_nifty['strike'].quantile(0.1), df_nifty['strike'].quantile(0.9))]
         
         st.write(f"📊 Total NIFTY options after filtering: {len(df_nifty)}")
